@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>持续被鼓励</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: radial-gradient(circle at 20% 20%, #1a1a1a, #050505 55%);
+        --card-bg: rgba(255, 255, 255, 0.08);
+        --card-border: rgba(255, 255, 255, 0.15);
+        --accent: rgba(255, 255, 255, 0.35);
+        --text-color: #f4f4f4;
+        --muted-text: rgba(255, 255, 255, 0.7);
+        --card-text: #f8f8f8;
+        --glow: rgba(255, 255, 255, 0.2);
+        --glow-weak: rgba(255, 255, 255, 0.35);
+      }
+
+      body.theme-light {
+        color-scheme: light;
+        --bg: radial-gradient(circle at 20% 20%, #fefefe, #e6ecf4 60%);
+        --card-bg: rgba(255, 255, 255, 0.86);
+        --card-border: rgba(15, 34, 58, 0.12);
+        --accent: rgba(15, 34, 58, 0.45);
+        --text-color: #1c1f24;
+        --muted-text: rgba(28, 31, 36, 0.7);
+        --card-text: #1b1f26;
+        --glow: rgba(156, 187, 255, 0.35);
+        --glow-weak: rgba(88, 140, 255, 0.35);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont,
+          "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif;
+        background: var(--bg);
+        color: var(--text-color);
+        overflow: hidden;
+      }
+
+      .canvas {
+        position: fixed;
+        inset: 0;
+      }
+
+      .hero {
+        position: relative;
+        z-index: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        pointer-events: none;
+        padding: 0 20px;
+      }
+
+      .hero h1 {
+        font-size: clamp(2.6rem, 6vw, 4.5rem);
+        font-weight: 600;
+        letter-spacing: -0.04em;
+        margin: 0;
+      }
+
+      .hero p {
+        margin: 12px 0 0;
+        font-size: clamp(1rem, 2vw, 1.3rem);
+        color: var(--muted-text);
+        max-width: 580px;
+      }
+
+      .card-layer {
+        position: fixed;
+        inset: -120px;
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      .card {
+        position: absolute;
+        padding: 16px 22px;
+        border-radius: 18px;
+        border: 1px solid var(--card-border);
+        background: var(--card-bg);
+        backdrop-filter: blur(18px);
+        color: var(--card-text);
+        font-size: 1rem;
+        letter-spacing: 0.01em;
+        line-height: 1.4;
+        box-shadow: 0 15px 60px rgba(0, 0, 0, 0.4);
+        left: var(--start-x);
+        top: var(--start-y);
+        transform: translate(-50%, -50%) scale(0.85);
+        opacity: 0;
+        transition:
+          left 3.2s cubic-bezier(0.34, 0.01, 0.16, 1),
+          top 3.2s cubic-bezier(0.34, 0.01, 0.16, 1),
+          transform 3.2s cubic-bezier(0.34, 0.01, 0.16, 1),
+          opacity 1.2s ease-out,
+          filter 1.4s ease-out;
+        will-change: left, top, opacity, transform, filter;
+      }
+
+      .card::after {
+        content: "";
+        position: absolute;
+        inset: -1px;
+        border-radius: inherit;
+        padding: 1px;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0));
+        mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        mask-composite: exclude;
+        pointer-events: none;
+      }
+
+      .card.card--focus {
+        left: var(--end-x);
+        top: var(--end-y);
+        transform: translate(-50%, -50%) scale(1.05);
+        opacity: 1;
+      }
+
+      .card.card--fade {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.7);
+        filter: blur(2px);
+      }
+
+      .glow {
+        position: absolute;
+        width: 420px;
+        height: 420px;
+        background: radial-gradient(circle, var(--glow), transparent 70%);
+        filter: blur(40px);
+        opacity: 0.6;
+        animation: drift 16s ease-in-out infinite alternate;
+        z-index: -1;
+      }
+
+      .glow.glow--right {
+        bottom: 5%;
+        right: 8%;
+        animation-duration: 22s;
+        opacity: 0.35;
+        background: radial-gradient(circle, var(--glow-weak), transparent 70%);
+      }
+
+      .theme-toggle {
+        position: absolute;
+        top: 32px;
+        right: 32px;
+        width: 52px;
+        height: 52px;
+        border-radius: 999px;
+        border: 1px solid var(--card-border);
+        background: rgba(0, 0, 0, 0.08);
+        color: var(--text-color);
+        font-size: 0;
+        backdrop-filter: blur(18px);
+        cursor: pointer;
+        transition:
+          transform 0.2s ease,
+          border-color 0.2s ease,
+          background 0.2s ease;
+        pointer-events: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0;
+        overflow: hidden;
+      }
+
+      .theme-light .theme-toggle {
+        background: rgba(255, 255, 255, 0.75);
+      }
+
+      .theme-toggle:hover {
+        transform: translateY(-1px);
+        border-color: var(--accent);
+      }
+
+      .theme-toggle .icon {
+        position: absolute;
+        width: 24px;
+        height: 24px;
+        transition:
+          opacity 0.25s ease,
+          transform 0.25s ease,
+          color 0.25s ease;
+        color: var(--text-color);
+      }
+
+      .theme-toggle .icon--sun {
+        opacity: 0;
+        transform: scale(0.8) rotate(-20deg);
+      }
+
+      .theme-toggle .icon--moon {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+      }
+
+      .theme-light .theme-toggle .icon--sun {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+      }
+
+      .theme-light .theme-toggle .icon--moon {
+        opacity: 0;
+        transform: scale(0.8) rotate(20deg);
+      }
+
+      .theme-toggle svg {
+        width: 100%;
+        height: 100%;
+        stroke: currentColor;
+        stroke-width: 1.6;
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .theme-toggle .icon--sun circle {
+        stroke-width: 1.8;
+      }
+
+      @media (max-width: 640px) {
+        .theme-toggle {
+          top: 16px;
+          right: 16px;
+          width: 44px;
+          height: 44px;
+        }
+      }
+
+      @keyframes drift {
+        from {
+          transform: translate(-40px, -10px) scale(1);
+        }
+        to {
+          transform: translate(30px, 60px) scale(1.15);
+        }
+      }
+
+      @media (max-width: 640px) {
+        .card {
+          padding: 14px 18px;
+          font-size: 0.95rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="canvas">
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="切换主题" aria-pressed="false">
+        <span class="icon icon--sun" aria-hidden="true">
+          <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+            <circle cx="12" cy="12" r="4.2"></circle>
+            <line x1="12" y1="2" x2="12" y2="4.5"></line>
+            <line x1="12" y1="19.5" x2="12" y2="22"></line>
+            <line x1="4.5" y1="12" x2="2" y2="12"></line>
+            <line x1="22" y1="12" x2="19.5" y2="12"></line>
+            <line x1="5.65" y1="5.65" x2="3.9" y2="3.9"></line>
+            <line x1="20.1" y1="20.1" x2="18.35" y2="18.35"></line>
+            <line x1="18.35" y1="5.65" x2="20.1" y2="3.9"></line>
+            <line x1="3.9" y1="20.1" x2="5.65" y2="18.35"></line>
+          </svg>
+        </span>
+        <span class="icon icon--moon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+            <path
+              d="M21 12.79A9 9 0 1 1 11.21 3a7.2 7.2 0 0 0 9.79 9.79Z"
+              stroke-width="1.7"
+            ></path>
+          </svg>
+        </span>
+      </button>
+      <div class="hero">
+        <div class="glow"></div>
+        <div class="glow glow--right"></div>
+        <h1>你已经很出色，继续保持。</h1>
+        <p>每一条弹出的心声，都在提醒你：注意力在梦想上，你就会抵达目的地。</p>
+      </div>
+      <div id="card-layer" class="card-layer" aria-live="polite"></div>
+    </div>
+
+    <script>
+      const layer = document.getElementById("card-layer");
+      const themeToggle = document.getElementById("theme-toggle");
+      const THEME_KEY = "encourage-theme";
+      const fallbackMessages = [
+        "你已经走得很远，再坚持一步，就看到风景了。",
+        "最懂你的人就是此刻的自己，相信内心的声音。",
+        "别害怕慢，停下才可惜。",
+        "你的努力，悄悄在为你铺路。",
+        "保持闪耀，世界需要这样的你。",
+        "伟大的故事，都从普通的一天开始。",
+        "你值得被看到，也值得被赞赏。",
+        "放轻松，你做得一直很好。",
+        "再往前一步，就是新的视野。",
+        "热爱正在指引你，别放开它的手。"
+      ];
+
+      let messages = [];
+      let flowHandle = null;
+      let dataReady = false;
+      let currentTheme = "dark";
+
+      const getStoredTheme = () => {
+        try {
+          return localStorage.getItem(THEME_KEY);
+        } catch {
+          return null;
+        }
+      };
+
+      const storeTheme = (theme) => {
+        try {
+          localStorage.setItem(THEME_KEY, theme);
+        } catch {
+          // 忽略存储失败
+        }
+      };
+
+      const applyTheme = (theme) => {
+        const isLight = theme === "light";
+        document.body.classList.toggle("theme-light", isLight);
+        document.body.classList.toggle("theme-dark", !isLight);
+        document.documentElement.style.setProperty("color-scheme", isLight ? "light" : "dark");
+        if (themeToggle) {
+          themeToggle.setAttribute("aria-label", isLight ? "切换深色模式" : "切换亮色模式");
+          themeToggle.setAttribute("aria-pressed", String(isLight));
+        }
+      };
+
+      const initTheme = () => {
+        const storedTheme = getStoredTheme();
+        if (storedTheme === "light" || storedTheme === "dark") {
+          currentTheme = storedTheme;
+        } else {
+          const prefersLight = window.matchMedia?.("(prefers-color-scheme: light)").matches;
+          currentTheme = prefersLight ? "light" : "dark";
+        }
+        applyTheme(currentTheme);
+      };
+
+      initTheme();
+
+      themeToggle?.addEventListener("click", () => {
+        currentTheme = currentTheme === "light" ? "dark" : "light";
+        applyTheme(currentTheme);
+        storeTheme(currentTheme);
+      });
+
+      const randomEdgePosition = () => {
+        const side = Math.random();
+        if (side < 0.25) {
+          return { x: Math.random() * window.innerWidth, y: -80 };
+        }
+        if (side < 0.5) {
+          return { x: Math.random() * window.innerWidth, y: window.innerHeight + 80 };
+        }
+        if (side < 0.75) {
+          return { x: -120, y: Math.random() * window.innerHeight };
+        }
+        return { x: window.innerWidth + 120, y: Math.random() * window.innerHeight };
+      };
+
+      const pickMessage = () => {
+        const source = messages.length ? messages : fallbackMessages;
+        return source[Math.floor(Math.random() * source.length)];
+      };
+
+      const spawnCard = () => {
+        if (!dataReady && !messages.length) {
+          return;
+        }
+
+        const card = document.createElement("div");
+        card.className = "card";
+        card.textContent = pickMessage();
+
+        const start = randomEdgePosition();
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2;
+        const offsetRange = window.innerWidth < 640 ? 90 : 160;
+        const end = {
+          x: centerX + (Math.random() - 0.5) * offsetRange,
+          y: centerY + (Math.random() - 0.5) * offsetRange
+        };
+
+        card.style.setProperty("--start-x", `${start.x}px`);
+        card.style.setProperty("--start-y", `${start.y}px`);
+        card.style.setProperty("--end-x", `${end.x}px`);
+        card.style.setProperty("--end-y", `${end.y}px`);
+
+        layer.appendChild(card);
+
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            card.classList.add("card--focus");
+          });
+        });
+
+        const fadeDelay = 3200 + Math.random() * 800;
+        setTimeout(() => card.classList.add("card--fade"), fadeDelay);
+        setTimeout(() => card.remove(), fadeDelay + 1200);
+      };
+
+      const startFlow = () => {
+        for (let i = 0; i < 6; i += 1) {
+          setTimeout(spawnCard, i * 250);
+        }
+        return setInterval(spawnCard, 650);
+      };
+
+      const stopFlow = () => {
+        if (!flowHandle) {
+          return;
+        }
+        clearInterval(flowHandle);
+        flowHandle = null;
+      };
+
+      const resumeFlow = () => {
+        if (!dataReady || (!messages.length && !fallbackMessages.length)) {
+          return;
+        }
+        stopFlow();
+        flowHandle = startFlow();
+      };
+
+      const loadMessages = async () => {
+        try {
+          const response = await fetch("messages.json", { cache: "no-cache" });
+          if (!response.ok) {
+            throw new Error(`请求失败：${response.status}`);
+          }
+          const data = await response.json();
+          if (Array.isArray(data) && data.length) {
+            messages = data;
+          } else {
+            messages = fallbackMessages;
+            console.warn("消息数据为空，已使用默认内容。");
+          }
+        } catch (error) {
+          console.error("无法加载消息列表：", error);
+          messages = fallbackMessages;
+        } finally {
+          dataReady = true;
+          resumeFlow();
+        }
+      };
+
+      loadMessages();
+
+      window.addEventListener("blur", stopFlow);
+      window.addEventListener("focus", resumeFlow);
+    </script>
+  </body>
+</html>
+
